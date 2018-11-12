@@ -23,20 +23,24 @@ UTIL_SCRIPT="pulverize_tool.py"
 
 def get_project_data(args):
     
+    #return(1,10000,"D:/VideoStuff/")
     realpath = os.path.dirname(os.path.realpath(__file__))
     utilfile = os.path.join(realpath, UTIL_SCRIPT)
     data = subprocess.check_output(['blender', '-b', args.blendfile, '-P', utilfile])
-    
-    lines = data.split('\n')
+    #print('\n')
+    #print(data)
+    #lines = data.split('\n')
+    lines = data.splitlines()
     frameinfo = lines[0].split()
-    # log.debug("frameinfo: %s", frameinfo)
+    log.debug("frameinfo: %s", frameinfo)
     outdirinfo = lines[1].split()
-    # log.debug("outputdir: %s", outdirinfo)
+    log.debug("outputdir: %s", outdirinfo)
 
     frame_start = int(frameinfo[1])
     frame_end = int(frameinfo[2])
     outdir = outdirinfo[1]
-
+    print("%d %d %s",frame_start, frame_end, outdir)
+    #return("1","10000","D:\\VideoStuff\\")
     return(frame_start, frame_end, outdir)
 
     pass
@@ -102,25 +106,28 @@ def render_proc(args, start_frame, end_frame, outdir):
 
 def join_chunks(args, outdir):
     """
-    Concatenate the video chunks together with ffmpeg
+    Concatenate the video chunks together with avconv
     """
+    #print(outdir.decode())
     # Which files do we need to join?
-    chunk_files = sorted(glob.glob(os.path.join(outdir, 'pulverize_frames_*')))
+    chunk_files = sorted(glob.glob(os.path.join(outdir.decode(), 'pulverize_frames_*')))
     # log.debug("file list is: %s", chunk_files)
-
-    file_list = os.path.join(outdir, 'pulverize_input_files.txt')
+    print(chunk_files)
+    file_list = os.path.join(outdir.decode(), 'pulverize_input_files.txt')
 
     with open(file_list, 'w') as fp:
-        fp.write('\n'.join(["file %s" % x for x in chunk_files]))
+        fp.write('\n'.join(["file %s" % x.replace('\\','\\\\') for x in chunk_files]))
     filebase, ext = os.path.splitext(os.path.basename(args.blendfile))
     outbase, outext = os.path.splitext(os.path.basename(chunk_files[0]))
     outfile = '%s%s' % (filebase, outext)
     log.info("Joining parts into: %s", outfile)
-    params = ['ffmpeg', '-stats', '-f', 'concat',
+    #params = ['avconv', '-stats', '-f', 'concat',
+    params = ['ffmpeg', '-f', 'concat',
             '-safe', '0',
+            #'0',
             '-i', file_list,
             '-c', 'copy', outfile]
-    log.debug("ffmpeg params: %s", params)
+    log.debug("avconv params: %s", params)
     if not args.dry_run:
         subprocess.check_call(params)
 
@@ -140,7 +147,7 @@ if __name__ == '__main__':
     frame_start, frame_end, outdir = get_project_data(args)
 
     if not args.concat_only:
-        render_chunks(args, frame_start, frame_end, outdir)
+        render_chunks(args, frame_start, frame_end, outdir.decode())
 
     if not args.render_only:
         join_chunks(args, outdir)
